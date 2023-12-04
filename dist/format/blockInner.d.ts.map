@@ -1,0 +1,1 @@
+{"version":3,"file":"blockInner.d.ts","sourceRoot":"","sources":["../../src/format/blockInner.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,eAAe,EAAE,MAAM,WAAW,CAAC;AAC5C,OAAO,EAAY,UAAU,EAAE,MAAM,WAAW,CAAC;AAOjD,eAAO,MAAM,iBAAiB,YACjB,eAAe,eACX,UAAU,EAAE,eACZ,MAAM,KACpB,MAmDF,CAAA;AAED,eAAO,MAAM,iCAAiC,gBAC7B,UAAU,EAAE,KAC1B,UAAU,EASZ,CAAA"}

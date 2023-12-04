@@ -1,0 +1,953 @@
+---
+import { joinString, filterOutContinueLines } from "./util";
+---
+
+start := contents=content* $
+
+content := newLine | someSpaces | commentLong | commentLine
+    | continueLine | functionBlock | preprocess
+
+newLine := newLine=newLineBody spaces=space*
+
+newLineBody := '\r\n' | '\n' | '\r'
+
+endOfLine := newLine | $
+
+space := '[ \t　]'
+
+someSpaces := spaces=space+
+
+commentLong := '/\*' commentRaw=commentLongBody* '\*/'
+    .comment = string {
+        const s = commentRaw.map((c) => c.c);
+        return joinString(s);
+    }
+
+commentLongBody := c='[\r\n]' | !'\*/' c='.'
+
+commentLine := spaces=space* '//' commentRaw='[^\r\n]'* endOfLine=endOfLine
+
+continueLine := '/' newLine=newLine
+
+continueLineOrCommentLong := continueLine | commentLong
+
+spaceOrContinueLineOrCommentLong := space | continueLine | commentLong
+
+identiferHeadCharacter := '[^ \t　!\'"#$%&\(\)\*\+\,\-/:;<\=>/?@\[\]`{\|}0-9_\r\n]'
+
+identiferBodySentence := continueLineOrCommentLong | identiferBodyCharacter
+
+identiferBodyCharacter := '[^ \t　!\'"#$%&\(\)\*\+\,\-/:;<\=>/?@\[\]`{\|}\r\n]'
+
+statementSeparator := separator=statementSeparatorBody
+
+statementSeparatorBody := ';' newLine? | newLine | commentLine
+
+statementTerminator := separator=statementSeparator | statementTerminatorBody
+
+statementTerminatorBody := &'}' ''
+
+// FunctionBlock
+functionBlock := name=functionBlockName
+    spacesBeforeSelector={ space | continueLine | newLine | commentLine | commentLong }*
+    selector=functionBlockSelector?
+    spacesBeforeBody={ space | continueLine | newLine | commentLine | commentLong }*
+    open={ '{{CHAIN' | '{' } blockInners=blockInner* close={ '}}CHAIN' | '}' }
+
+functionBlockName := identifer
+
+functionBlockSelector := spaceLhs=spaceOrContinueLineOrCommentLong*
+    ':' spaceRhs=spaceOrContinueLineOrCommentLong* selector=selector?
+
+// Selector
+selector := prefix=selectorPrefix? main=selectorMain suffix=selectorSuffix?
+
+selectorPrefix := nameRaw=selectorPrefixName '_'
+
+selectorPrefixName :=
+    // pool
+    'p' c1=continueLineOrCommentLong* 'o' c2=continueLineOrCommentLong* 'o' c3=continueLineOrCommentLong* 'l' c4=continueLineOrCommentLong*
+    .name = string { return 'pool'; }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4];
+        return filterOutContinueLines(raw);
+    }
+
+selectorMain := nameRaw=selectorMainName
+
+selectorMainName :=
+    // random
+    'r' c1=continueLineOrCommentLong* 'a' c2=continueLineOrCommentLong* 'n' c3=continueLineOrCommentLong* 'd' c4=continueLineOrCommentLong* 'o' c5=continueLineOrCommentLong* 'm' c6=continueLineOrCommentLong*
+    .name = string { return 'random'; }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6];
+        return filterOutContinueLines(raw);
+    }
+    |
+    // nonoverlap
+    'n' c1=continueLineOrCommentLong* 'o' c2=continueLineOrCommentLong* 'n' c3=continueLineOrCommentLong* 'o' c4=continueLineOrCommentLong* 'v' c5=continueLineOrCommentLong* 'e' c6=continueLineOrCommentLong* 'r' c7=continueLineOrCommentLong* 'l' c8=continueLineOrCommentLong* 'a' c9=continueLineOrCommentLong* 'p' c10=continueLineOrCommentLong*
+    .name = string { return 'nonoverlap'; }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10];
+        return filterOutContinueLines(raw);
+    }
+    |
+    // sequential
+    's' c1=continueLineOrCommentLong* 'e' c2=continueLineOrCommentLong* 'q' c3=continueLineOrCommentLong* 'u' c4=continueLineOrCommentLong* 'e' c5=continueLineOrCommentLong* 'n' c6=continueLineOrCommentLong* 't' c7=continueLineOrCommentLong* 'i' c8=continueLineOrCommentLong* 'a' c9=continueLineOrCommentLong* 'l' c10=continueLineOrCommentLong*
+    .name = string { return 'sequential'; }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10];
+        return filterOutContinueLines(raw);
+    }
+    |
+    // array
+    'a' c1=continueLineOrCommentLong* 'r' c2=continueLineOrCommentLong* 'r' c3=continueLineOrCommentLong* 'a' c4=continueLineOrCommentLong* 'y' c5=continueLineOrCommentLong*
+    .name = string { return 'array'; }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5];
+        return filterOutContinueLines(raw);
+    }
+    |
+    // void
+    'v' c1=continueLineOrCommentLong* 'o' c2=continueLineOrCommentLong* 'i' c3=continueLineOrCommentLong* 'd' c4=continueLineOrCommentLong*
+    .name = string { return 'void'; }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4];
+        return filterOutContinueLines(raw);
+    }
+    |
+    // all
+    'a' c1=continueLineOrCommentLong* 'l' c2=continueLineOrCommentLong* 'l' c3=continueLineOrCommentLong*
+    .name = string { return 'all'; }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3];
+        return filterOutContinueLines(raw);
+    }
+    |
+    // last
+    'l' c1=continueLineOrCommentLong* 'a' c2=continueLineOrCommentLong* 's' c3=continueLineOrCommentLong* 't' c4=continueLineOrCommentLong*
+    .name = string { return 'last' }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4];
+        return filterOutContinueLines(raw);
+    }
+
+selectorSuffix := '_' nameRaw=selectorSuffixName
+
+selectorSuffixName :=
+    // pool
+    'p' c1=continueLineOrCommentLong* 'o' c2=continueLineOrCommentLong*
+    'o'  c3=continueLineOrCommentLong* 'l'
+    .name = string { return 'pool'; }
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3];
+        return filterOutContinueLines(raw);
+    }
+
+// Block
+block := spacesStart={ space | continueLine | newLine | commentLong | commentLine }*
+    selector=blockSelector?
+    spacesBeforeBlock={ space | continueLine | newLine }*
+    '{' blockInners=blockInner* '}'
+    spacesEnd={ space | continueLine | newLine | commentLong | commentLine }*
+
+blockSelector := selector=selector? spacesLhs=space* ':' spacesRhs=space*
+
+// BlockInner
+blockInner := newLine | commentLong | commentLine | continueLine | someSpaces
+    | blockInnerFlow | blockInnerSentence | preprocess
+
+blockInnerFlow := body=blockInnerFlowKind
+
+blockInnerFlowKind := flowIf | flowCase | flowSwitch | flowWhile | flowFor | flowForeach | block
+
+blockInnerSentence := body=blockInnerSentenceKind
+    spaces={space | continueLine | commentLong}* terminator=statementTerminator
+
+blockInnerSentenceKind := blockInnerBreak | blockInnerContinue | blockInnerReturn
+    | blockInnerParallel | blockInnerVoid
+    | outputSettlement | expr
+
+// FlowIf
+flowIf := name=flowIfName space+ condition=expr block={ block | flowIfBlock }
+    flowElseifs=flowElseif*
+    flowElse=flowElse?
+
+flowIfName := 'i' c1=continueLineOrCommentLong* 'f'
+    .comments = commentLong[][] {
+        const raw = [c1];
+        return filterOutContinueLines(raw);
+    }
+
+flowElseif := name=flowElseifName space+ condition=expr block={ block | flowIfBlock }
+
+flowElseifName := 'e' c1=continueLineOrCommentLong* 'l' c2=continueLineOrCommentLong*
+    's' c3=continueLineOrCommentLong* 'e' c4=continueLineOrCommentLong*
+    'i' c5=continueLineOrCommentLong* 'f' c6=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6];
+        return filterOutContinueLines(raw);
+    }
+
+flowElse := name=flowElseName block={ block | flowIfBlock }
+
+flowElseName := 'e' c1=continueLineOrCommentLong* 'l' c2=continueLineOrCommentLong*
+    's' c3=continueLineOrCommentLong* 'e' c4=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4];
+        return filterOutContinueLines(raw);
+    }
+
+flowIfBlock := spacesStart=spaceOrContinueLineOrCommentLong*
+    newLineFirst={ newLine | commentLine }
+    inner=blockInnerSentence
+    spacesEnd={ space | commentLong }*
+
+// FlowCase
+flowCase := name=flowCaseName space+ condition=expr
+    spacesBeforeBlock={ space | continueLine | newLine | commentLong | commentLine }*
+    '{'
+     firstBlockInners=blockInner*
+     flowWhens=flowWhen*
+     flowOthers=flowOthers?
+     lastBlockInners=blockInner*
+    '}'
+    spacesAfterBlock={ space | continueLine | newLine | commentLong | commentLine }*
+
+flowCaseName := 'c' c1=continueLineOrCommentLong* 'a' c2=continueLineOrCommentLong*
+    's' c3=continueLineOrCommentLong* 'e' c4=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4];
+        return filterOutContinueLines(raw);
+    }
+
+flowWhen := name=flowWhenName space+ conditions=flowWhenConditions block=block
+
+flowWhenName := 'w' c1=continueLineOrCommentLong* 'h' c2=continueLineOrCommentLong*
+    'e' c3=continueLineOrCommentLong* 'n' c4=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4];
+        return filterOutContinueLines(raw);
+    }
+
+flowWhenConditions := conditionHead=flowWhenCondition
+    conditionBodies={'\,' body=flowWhenCondition}*
+    .conditions = flowWhenCondition[] {
+        const bodies = conditionBodies.map((b) => b.body);
+        return [conditionHead, ...bodies];
+    }
+
+flowWhenCondition := flowWhenConditionRange | flowWhenConditionLiteral
+
+flowWhenConditionLiteral := spacesStart={ space | continueLine | commentLong }*
+    body={ literal | maybePreprocess }
+    spacesEnd={ space | continueLine | commentLong }*
+
+flowWhenConditionRange := spacesStart={ space | continueLine | commentLong }*
+    lhs= { literal | maybePreprocess }
+    spacesLhs={ space | continueLine | commentLong }*
+    '\-'
+    spacesRhs={ space | continueLine | commentLong }*
+    rhs={ literal | maybePreprocess }
+    spacesEnd={ space | continueLine | commentLong }*
+
+flowOthers := spacesStart={ space | continueLine | commentLong }* name=flowOthersName block=block
+
+flowOthersName := 'o' c1=continueLineOrCommentLong* 't' c2=continueLineOrCommentLong*
+    'h' c3=continueLineOrCommentLong* 'e' c4=continueLineOrCommentLong*
+    'r' c5=continueLineOrCommentLong* 's' c6=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6];
+        return filterOutContinueLines(raw);
+    }
+
+// FlowSwitch
+flowSwitch := name=flowSwitchName space+ condition=expr block=block
+
+flowSwitchName := 's' c1=continueLineOrCommentLong* 'w' c2=continueLineOrCommentLong*
+    'i' c3=continueLineOrCommentLong* 't' c4=continueLineOrCommentLong*
+    'c' c5=continueLineOrCommentLong* 'h' c6=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6];
+        return filterOutContinueLines(raw);
+    }
+
+// FlowWhile
+flowWhile := name=flowWhileName space+ condition=expr block=block
+
+flowWhileName := 'w' c1=continueLineOrCommentLong* 'h' c2=continueLineOrCommentLong*
+    'i' c3=continueLineOrCommentLong* 'l' c4=continueLineOrCommentLong*
+    'e' c5=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5];
+        return filterOutContinueLines(raw);
+    }
+
+// FlowFor
+flowFor := name=flowForName space+ initializer=expr
+    space*
+    separator1=statementSeparator
+    space*
+    condition=expr
+    space*
+    separator2=statementSeparator
+    space*
+    updater=expr
+    block=block
+
+flowForName := 'f' c1=continueLineOrCommentLong* 'o' c2=continueLineOrCommentLong*
+    'r' c3=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3];
+        return filterOutContinueLines(raw);
+    }
+
+// FlowForeach
+flowForeach := name=flowForeachName space+ target=expr space* separator=statementSeparator
+    spaceBeforeVariable={ space | commentLong | continueLine }*
+    variable=variable block=block
+
+flowForeachName := 'f' c1=continueLineOrCommentLong* 'o' c2=continueLineOrCommentLong*
+    'r' c3=continueLineOrCommentLong* 'e' c4=continueLineOrCommentLong*
+    'a' c5=continueLineOrCommentLong* 'c' c6=continueLineOrCommentLong*
+    'h' c7=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6, c7];
+        return filterOutContinueLines(raw);
+    }
+
+// blockInnerBreak
+blockInnerBreak := name=blockInnerBreakName
+
+blockInnerBreakName := 'b' c1=continueLineOrCommentLong* 'r' c2=continueLineOrCommentLong*
+    'e' c3=continueLineOrCommentLong* 'a' c4=continueLineOrCommentLong*
+    'k' c5=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5];
+        return filterOutContinueLines(raw);
+    }
+
+// blockInnerContinue
+blockInnerContinue := name=blockInnerContinueName
+
+blockInnerContinueName := 'c' c1=continueLineOrCommentLong* 'o' c2=continueLineOrCommentLong*
+    'n' c3=continueLineOrCommentLong* 't' c4=continueLineOrCommentLong*
+    'i' c5=continueLineOrCommentLong* 'n' c6=continueLineOrCommentLong*
+    'u' c7=continueLineOrCommentLong* 'e' c8=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6, c7, c8];
+        return filterOutContinueLines(raw);
+    }
+
+// blockInnerReturn
+blockInnerReturn := name=blockInnerReturnName
+
+blockInnerReturnName := 'r' c1=continueLineOrCommentLong* 'e' c2=continueLineOrCommentLong*
+    't' c3=continueLineOrCommentLong* 'u' c4=continueLineOrCommentLong*
+    'r' c5=continueLineOrCommentLong* 'n' c6=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6];
+        return filterOutContinueLines(raw);
+    }
+
+// blockInnerParallel
+blockInnerParallel := name=blockInnerParallelName target=expr
+
+blockInnerParallelName := 'p' c1=continueLineOrCommentLong* 'a' c2=continueLineOrCommentLong*
+    'r' c3=continueLineOrCommentLong* 'a' c4=continueLineOrCommentLong*
+    'l' c5=continueLineOrCommentLong* 'l' c6=continueLineOrCommentLong*
+    'e' c7=continueLineOrCommentLong* 'l' c8=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6, c7, c8];
+        return filterOutContinueLines(raw);
+    }
+
+// blockInnerVoid
+blockInnerVoid := name=blockInnerVoidName target=expr
+
+blockInnerVoidName := 'v' c1=continueLineOrCommentLong* 'o' c2=continueLineOrCommentLong*
+    'i' c3=continueLineOrCommentLong* 'd' c4=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4];
+        return filterOutContinueLines(raw);
+    }
+
+// OutputSettlement
+outputSettlement := tokens='\-\-'
+
+// Expr
+expr :=  spacesLhs={ space | commentLong | continueLine }*
+    inner=exprInner
+    spacesRhs={ space | commentLong | continueLine }*
+
+exprInner :=
+    commaOperation
+    | multiplicationOrDivisionOperation
+    | additionOrSubtractionOperation
+    | logicalConjunction | logicalDisjunction
+    | substitution | substitutionOperation
+    | comparisonOperation
+    | arrayCall | functionCall
+    | parenthesesOperation | bracketsOperation | exclamationOperation
+    | incrementOrDecrementOperation
+    | feedbackOperation
+    | literal | variable | signed
+    | maybePreprocess
+
+// ParenthesesOperation
+parenthesesOperation := '\('
+    spacesLhs={ space | commentLong | continueLine }*
+    operand=expr?
+    spacesRhs={ space | commentLong | continueLine }*
+    '\)'
+
+bracketsOperation := '\['
+    spacesLhs={ space | commentLong | continueLine }*
+    start=expr end=bracketsOperationOption? delimiter=bracketsOperationOption?
+    spacesRhs={ space | commentLong | continueLine }*
+    '\]'
+
+bracketsOperationOption := spacesLhs={ space | commentLong | continueLine }*
+    ',' spacesRhs={ space | commentLong | continueLine }*
+    value=expr?
+
+exclamationOperation := '\!' spaces={ space | commentLong | continueLine }* operand=expr
+
+incrementOrDecrementOperation := operand=variable
+    spaces={ space | commentLong | continueLine }*
+    operator=incrementOrDecrementOperator
+
+incrementOrDecrementOperator :=
+    {
+        '\+' c1={ commentLong | continueLine }* '\+' c2={ commentLong | continueLine }*
+            .body = string { return '\+\+'; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\-' c1={ commentLong | continueLine }* '\-' c2={ commentLong | continueLine }*
+            .body = string { return '\-\-' }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+
+multiplicationOrDivisionOperation := operand1=expr
+    spacesLhs={ space | commentLong | continueLine }*
+    operator=multiplicationOrDivisionOperator
+    spacesRhs={ space | commentLong | continueLine }*
+    operand2=expr
+
+multiplicationOrDivisionOperator :=
+    {
+        '\*' c1={ commentLong | continueLine }*
+            .body = string { return '\*'; }
+            .comments = commentLong[][] {
+                const raw = [c1];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\/' c1={ commentLong | continueLine }*
+            .body = string { return '\/'; }
+            .comments = commentLong[][] {
+                const raw = [c1];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\%' c1={ commentLong | continueLine }*
+            .body = string { return '\%'; }
+            .comments = commentLong[][] {
+                const raw = [c1];
+                return filterOutContinueLines(raw);
+            }
+    }
+
+additionOrSubtractionOperation := operand1=expr
+    spacesLhs={ space | commentLong | continueLine }*
+    operator=additionOrSubtractionOperator
+    spacesRhs={ space | commentLong | continueLine }*
+    operand2=expr
+
+additionOrSubtractionOperator :=
+    {
+        '\+' c1={ commentLong | continueLine }*
+            .body = string { return '\+'; }
+            .comments = commentLong[][] {
+                const raw = [c1];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\-' c1={ commentLong | continueLine }*
+            .body = string { return '\-'; }
+            .comments = commentLong[][] {
+                const raw = [c1];
+                return filterOutContinueLines(raw);
+            }
+    }
+
+feedbackOperation := '\&' spaces={ space | commentLong | continueLine }* operand=variable
+
+comparisonOperation := operand1=expr
+    spacesLhs={ space | commentLong | continueLine }*
+    operator=comparisonOperator
+    spacesRhs={ space | commentLong | continueLine }*
+    operand2=expr
+
+comparisonOperator :=
+    {
+        '\=' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\=\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\!' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\!\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\>' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\>\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\<' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\<\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\<' c1={ commentLong | continueLine }*
+            .body = string { return '\<'; }
+            .comments = commentLong[][] {
+                const raw = [c1];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\>' c1={ commentLong | continueLine }*
+            .body = string { return '\>'; }
+            .comments = commentLong[][] {
+                const raw = [c1];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\_' c1={ commentLong | continueLine }* 'i' c2={ commentLong | continueLine }*
+        'n' c3={ commentLong | continueLine }* '\_' c4={ commentLong | continueLine }*
+            .body = string { return '\_in\_'; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2, c3, c4];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\!' c1={ commentLong | continueLine }* '\_' c2={ commentLong | continueLine }*
+        'i' c3={ commentLong | continueLine }* 'n' c4={ commentLong | continueLine }*
+        '\_' c5={ commentLong | continueLine }*
+            .body = string { return '!\_in\_'; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2, c3, c4, c5];
+                return filterOutContinueLines(raw);
+            }
+    }
+
+logicalConjunction := operand1=expr
+    spacesLhs={ space | commentLong | continueLine }*
+    operator=logicalConjunctionOperator
+    spacesRhs={ space | commentLong | continueLine }*
+    operand2=expr
+
+logicalConjunctionOperator :=
+    {
+        '\&' c1={ commentLong | continueLine }* '\&' c2={ commentLong | continueLine }*
+            .body = string { return '\&\&'; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+
+logicalDisjunction := operand1=expr
+    spacesLhs={ space | commentLong | continueLine }*
+    operator=logicalDisjunctionOperator
+    spacesRhs={ space | commentLong | continueLine }*
+    operand2=expr
+
+logicalDisjunctionOperator :=
+    {
+        '\|' c1={ commentLong | continueLine }* '\|' c2={ commentLong | continueLine }*
+            .body = string { return '\|\|'; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+
+substitution := operand1={ arrayCall | variable }
+    spacesLhs={ space | commentLong | continueLine }*
+    operator=substitutionOperator
+    spacesRhs={ space | commentLong | continueLine }*
+    operand2=expr
+
+substitutionOperator :=
+    {
+        '\=' c1={ commentLong | continueLine }*
+            .body = string { return '\='; }
+            .comments = commentLong[][] {
+                const raw = [c1];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\:' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\:\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+
+substitutionOperation := operand1={ arrayCall | variable  }
+    spacesLhs={ space | commentLong | continueLine }*
+    operator= substitutionOperationOperator
+    spacesRhs={ space | commentLong | continueLine }*
+    operand2=expr
+
+substitutionOperationOperator :=
+    {
+        '\+' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\+\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\-' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\-\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\*' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\*\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\/' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\/\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\%' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\%\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\+' c1={ commentLong | continueLine }* '\:' c2={ commentLong | continueLine }*
+        '\=' c3={ commentLong | continueLine }*
+            .body = string { return '\+\:\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2, c3];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\-' c1={ commentLong | continueLine }* '\:' c2={ commentLong | continueLine }*
+        '\=' c3={ commentLong | continueLine }*
+            .body = string { return '\-\:\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2, c3];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\*' c1={ commentLong | continueLine }* '\:' c2={ commentLong | continueLine }*
+        '\=' c3={ commentLong | continueLine }*
+            .body = string { return '\*\:\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2, c3];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\/' c1={ commentLong | continueLine }* '\:' c2={ commentLong | continueLine }*
+        '\=' c3={ commentLong | continueLine }*
+            .body = string { return '\/\:\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2, c3];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\%' c1={ commentLong | continueLine }* '\:' c2={ commentLong | continueLine }*
+        '\=' c3={ commentLong | continueLine }*
+            .body = string { return '\%\:\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2, c3];
+                return filterOutContinueLines(raw);
+            }
+    }
+    |
+    {
+        '\,' c1={ commentLong | continueLine }* '\=' c2={ commentLong | continueLine }*
+            .body = string { return '\,\='; }
+            .comments = commentLong[][] {
+                const raw = [c1, c2];
+                return filterOutContinueLines(raw);
+            }
+    }
+
+commaOperation := head=expr?
+    bodyRaw={
+        spacesLhs=spaceOrContinueLineOrCommentLong*
+        '\,' expr=expr?
+        spacesRhs=spaceOrContinueLineOrCommentLong*
+    }+
+    .operands = (expr | null)[] {
+        const exprs = bodyRaw.map((b) => [b.expr]);
+        const h = [head];
+        return [h, ...exprs].flat();
+    }
+    .comments = commentLong[][] {
+        const raw = bodyRaw.flatMap((b) => [b.spacesLhs, b.spacesRhs]);
+        return raw.map((t) => {
+            return t.flatMap((c) => {
+                if (typeof (c) === "string") {
+                    return [];
+                }
+                if (c.kind === ASTKinds.continueLine) {
+                    return [];
+                }
+                return [c];
+            });
+        });
+    }
+
+arrayCall := target=expr
+    '\['
+    spacesLhs={ space | commentLong | continueLine }*
+    call=expr?
+    spacesRhs={ space | commentLong | continueLine }*
+    '\]'
+
+functionCall := target=identifer '\('
+    spacesLhs={ space | commentLong | continueLine }*
+    args=expr?
+    spacesRhs={ space | commentLong | continueLine }*
+    '\)'
+
+signed := operator={ '\+' | '\-' } operand=expr
+
+// Identifer & Variable
+variable := identifer | variableLocal
+
+identifer := head=identiferHeadCharacter bodyRaw=identiferBodySentence*
+          .name = string {
+                const target = [head, ...bodyRaw];
+                return joinString(target);
+          }
+
+variableLocal := '_' spaces=continueLineOrCommentLong*
+    head=identiferHeadCharacter bodyRaw=identiferBodySentence*
+    .name = string {
+          const target = ['_', head, ...bodyRaw];
+          return joinString(target);
+    }
+
+// Literal
+literal := heredoc | heredocRaw | literalString | literalStringRaw | real | int
+
+// Heredoc
+heredoc := '<<\"' newLine
+    bodyRaw=heredocInner+
+    '\">>'
+    .body = string {
+        const characters = bodyRaw.filter((b) => b.c !== undefined).map((b) => b.c);
+        return joinString(characters);
+    }
+
+heredocInner := c='\"\">>' | c='[\r\n]' | !'\">>' c='.'
+
+heredocRaw := '<<\'' newLine
+    bodyRaw=heredocRawInner+
+    '\'>>'
+    .body = string {
+        const characters = bodyRaw.filter((b) => b.c !== undefined).map((b) => b.c);
+        return joinString(characters);
+    }
+
+heredocRawInner := c='\'\'>>' | c='[\r\n]' | !'\'>>' c='.'
+
+// LiteralString
+// TODO: ""(continueLine)"" -> (emptyString)(continueLine)(emptyString)
+literalString := '\"' bodyRaw=literalStringInner* '\"'
+    .body = string
+    {
+        const characters = bodyRaw.filter((b) => typeof(b) === "string");
+        return joinString(characters);
+    }
+
+literalStringInner := continueLine | newLine | '\"\"' | '[^\r\n\"]'
+
+literalStringRaw := '\'' bodyRaw=literalStringRawInner* '\''
+    .body = string
+    {
+        const characters = bodyRaw.filter((b) => typeof(b) === "string");
+        return joinString(characters);
+    }
+
+literalStringRawInner := continueLine | newLine | '\'\'' | '[^\r\n\']'
+
+// Real
+real := sign={ '-' | '\+' }?
+    head='[0-9]' integerPart=int_x10Inner* '\.' fractionalPart=int_x10Inner+
+    .str = string {
+        return joinString([
+            sign === null ? "" : sign,
+            head,
+            ...integerPart,
+            '.',
+            ...fractionalPart,
+        ])
+    }
+    .value = number { return parseFloat(this.str); }
+
+// Int
+int := int_x2 | int_x16 | int_x10
+
+int_x10 := sign={ '-' | '\+' }? head='[0-9]' bodyRaw=int_x10Inner*
+    .str = string {
+        return joinString([
+            sign === null ? "" : sign,
+            head,
+            ...bodyRaw
+        ]);
+    }
+    .value = number { return parseInt(this.str); }
+
+int_x10Inner := continueLineOrCommentLong | '[0-9]'
+
+int_x2 := head='0b' bodyRaw=int_x2Inner+
+    .str = string { return joinString([head, ...bodyRaw]); }
+    .value = number { return parseInt(joinString(bodyRaw), 2); }
+
+int_x2Inner := continueLineOrCommentLong | '[01]'
+
+int_x16 := head='0x' bodyRaw=int_x16Inner+
+    .str = string { return joinString([head, ...bodyRaw]); }
+    .value = number { return parseInt(joinString(bodyRaw), 16); }
+
+int_x16Inner := continueLineOrCommentLong | '[0-9a-fA-F]'
+
+// Preprocess
+preprocess := preprocessGlobalDefine | preprocessDefine
+
+preprocessGlobalDefine := nameRaw=preprocessGlobalDefineName
+    spacesLhs=spaceOrContinueLineOrCommentLong+
+    beforeRaw=preprocessBeforeCharacterSentence+
+    spacesRhs=spaceOrContinueLineOrCommentLong+
+    afterRaw=preprocessAfterCharacterSentence+
+    newLine=newLine
+    .before = string { return joinString(beforeRaw); }
+    .after = string { return joinString(afterRaw); }
+
+preprocessGlobalDefineName := '#' c1=continueLineOrCommentLong* 'g' c2=continueLineOrCommentLong*
+    'l' c3=continueLineOrCommentLong* 'o' c4=continueLineOrCommentLong*
+    'b' c5=continueLineOrCommentLong* 'a' c6=continueLineOrCommentLong*
+    'l' c7=continueLineOrCommentLong* 'd' c8=continueLineOrCommentLong*
+    'e' c9=continueLineOrCommentLong* 'f' c10=continueLineOrCommentLong*
+    'i' c11=continueLineOrCommentLong* 'n' c12=continueLineOrCommentLong*
+    'e' c13=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13];
+        return filterOutContinueLines(raw);
+    }
+
+preprocessDefine := nameRaw=preprocessDefineName
+    spacesLhs=spaceOrContinueLineOrCommentLong+
+    beforeRaw=preprocessBeforeCharacterSentence+
+    spacesRhs=spaceOrContinueLineOrCommentLong+
+    afterRaw=preprocessAfterCharacterSentence+
+    newLine=newLine
+    .before = string { return joinString(beforeRaw); }
+    .after = string { return joinString(afterRaw); }
+
+preprocessDefineName := '#' c1=continueLineOrCommentLong* 'd' c2=continueLineOrCommentLong*
+    'e' c3=continueLineOrCommentLong* 'f' c4=continueLineOrCommentLong*
+    'i' c5=continueLineOrCommentLong* 'n' c6=continueLineOrCommentLong*
+    'e' c7=continueLineOrCommentLong*
+    .comments = commentLong[][] {
+        const raw = [c1, c2, c3, c4, c5, c6, c7];
+        return filterOutContinueLines(raw);
+    }
+
+maybePreprocess := bodyRaw=preprocessBeforeCharacterSentence+
+    .comments = commentLong[] {
+        return bodyRaw.flatMap((b) => {
+            if (typeof (b) === "string") {
+                return [];
+            }
+            if (b.kind === ASTKinds.continueLine) {
+                return [];
+            }
+            return [b];
+        });
+    }
+    .body = string { return joinString(bodyRaw); }
+
+preprocessBeforeCharacterSentence := continueLineOrCommentLong
+    | '[^ \t　!\'\"%&\(\)\*\+\,\-\/;<\=>/\[\]{\|}\r\n]'
+// #$:?@`
+//    | '[^\r\n \t　]'
+
+preprocessAfterCharacterSentence := continueLineOrCommentLong | '[^\r\n]'
