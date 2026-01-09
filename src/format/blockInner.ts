@@ -66,7 +66,7 @@ export const formatBlockInners = (
 export const deleteFirstNewLineFromBlockInners = (
     blockInners: blockInner[]
 ): blockInner[] => {
-    const firstInner = blockInners.at(0);
+    const firstInner = blockInners[0];
 
     if (firstInner !== undefined && isNewLine(firstInner)) {
         const poppedInners = blockInners.slice(1);

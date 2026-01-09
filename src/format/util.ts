@@ -38,7 +38,7 @@ export const eraseNewLineAfterTarget = <T extends ASTNodeIntf>(
     const initialValue: (newLine | T | string)[] = [];
 
     return tokens.reduceRight((accumlator, current) => {
-        const next = accumlator.at(0);
+        const next = accumlator[0];
         if (next === undefined
             || typeof (current) === "string"
             || typeof (next) === "string") {
